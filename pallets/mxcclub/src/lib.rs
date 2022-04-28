@@ -1,16 +1,16 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-/// Edit this file to define custom logic or remove it if it is not needed.
-/// Learn more about FRAME and the core library of Substrate FRAME pallets:
-/// <https://docs.substrate.io/v3/runtime/frame>
 pub use pallet::*;
 
+// mocks for test
 #[cfg(test)]
 mod mock;
 
+// tests
 #[cfg(test)]
 mod tests;
 
+// benchmarking the pallet
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
@@ -19,84 +19,128 @@ pub mod pallet {
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
-	/// Configure the pallet by specifying the parameters and types on which it depends.
-	#[pallet::config]
-	pub trait Config: frame_system::Config {
-		/// Because this pallet emits events, it depends on the runtime's definition of an event.
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-	}
-
+	/// ### MxcClub Pallet Struct
+	/// pallet struct of Greeter
+	/// business logic & callable gather around it
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// The pallet's runtime storage items.
-	// https://docs.substrate.io/v3/runtime/storage
-	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://docs.substrate.io/v3/runtime/storage#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
+	#[pallet::config]
+	pub trait Config: frame_system::Config {
+		/// as mxcclub pallet emits events, it depends on the runtime's definition of an event.
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-	// Pallets use events to inform users when important changes are made.
-	// https://docs.substrate.io/v3/runtime/events-and-errors
+		/// For constraining the member length
+		type MaxBytesInMemberName: Get<u32>;
+	}
+
+	/// ### A Member
+
+	#[derive(Clone, Encode, Decode, PartialEq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
+	#[scale_info(skip_type_params(T))]
+	#[codec(mel_bound())]
+
+	pub struct Member<T: Config> {
+		pub id: T::AccountId,
+		pub name: BoundedVec<u8, T::MaxBytesInMemberName>,
+	}
+
+	// StorageMap containing entries of AccountId and Member
+	// object defined above
+	#[pallet::storage]
+	pub(super) type Members<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, Member<T>>;
+
+	// events this pallet will
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Event documentation should end with an array that provides descriptive names for event
-		/// parameters. [something, who]
-		SomethingStored(u32, T::AccountId),
+		// when new member is added
+		MemberAdded { member: T::AccountId },
+
+		// when member is removed
+		MemberRemoved { member: T::AccountId },
 	}
 
-	// Errors inform users that something went wrong.
+	// error to report if case of undesired situation
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Error names should be descriptive.
-		NoneValue,
-		/// Errors should have helpful documentation associated with them.
-		StorageOverflow,
+		// When specified member is not found
+		MemberNotFound,
 	}
 
-	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
-	// These functions materialize as "extrinsics", which are often compared to transactions.
-	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
+	// Pallet's callables.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/v3/runtime/origins
-			let who = ensure_signed(origin)?;
+		/// let owner origins add member in club
+		#[pallet::weight(0)]
+		pub fn add_member(
+			origin: OriginFor<T>,
+			member_account_id: T::AccountId,
+			member_name: BoundedVec<u8, T::MaxBytesInMemberName>,
+		) -> DispatchResult {
+			// make sure the it's root
+			ensure_root(origin.clone())?;
 
-			// Update storage.
-			<Something<T>>::put(something);
+			// Make sure the caller is from a signed origin
+			// let _user = ensure_signed(origin)?;
 
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
+			// Generate unique DNA and Gender using a helper function
+			Self::do_add_member(member_account_id, member_name)?;
 			Ok(())
 		}
 
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+		/// let root remove member
+		#[pallet::weight(0)]
+		pub fn remove_member(
+			origin: OriginFor<T>,
+			member_account_id: T::AccountId,
+		) -> DispatchResult {
+			// make sure the it's root
+			ensure_root(origin.clone())?;
 
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => Err(Error::<T>::NoneValue)?,
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
+			// Make sure the caller is from a signed origin
+			// let _user = ensure_signed(origin)?;
+
+			Self::do_remove_member(member_account_id)?;
+			Ok(())
+		}
+	}
+
+	// methods internal to pallet
+	impl<T: Config> Pallet<T> {
+		// add member in club's onchain stoarge
+		fn do_add_member(
+			member_account_id: T::AccountId,
+			member_name: BoundedVec<u8, T::MaxBytesInMemberName>,
+		) -> Result<(), DispatchError> {
+			// create new member
+			let new_member = Member { id: member_account_id.clone(), name: member_name };
+
+			// add in clubs on chain storage
+			Members::<T>::insert(&member_account_id, new_member);
+
+			// emit member addition event
+			Self::deposit_event(Event::MemberAdded { member: member_account_id.clone() });
+
+			// return ok
+			Ok(())
+		}
+
+		// remove member from on chain storage
+		fn do_remove_member(member_account_id: T::AccountId) -> Result<(), DispatchError> {
+			if !Members::<T>::contains_key(&member_account_id) {
+				return Err(Error::<T>::MemberNotFound.into());
 			}
+
+			// update members
+			Members::<T>::remove(&member_account_id);
+
+			// emit the event
+			Self::deposit_event(Event::MemberRemoved { member: member_account_id.clone() });
+
+			// return ok
+			Ok(())
 		}
 	}
 }

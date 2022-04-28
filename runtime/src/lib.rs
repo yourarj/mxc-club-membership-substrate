@@ -266,6 +266,7 @@ impl pallet_sudo::Config for Runtime {
 /// Configure the pallet-mxcclub in pallets/mxcclub.
 impl pallet_mxcclub::Config for Runtime {
 	type Event = Event;
+	type MaxBytesInMemberName = frame_support::traits::ConstU32<100>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
