@@ -42,7 +42,7 @@ pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
 /// Import the template pallet.
-pub use pallet_template;
+pub use pallet_mxcclub;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -263,8 +263,8 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-/// Configure the pallet-template in pallets/template.
-impl pallet_template::Config for Runtime {
+/// Configure the pallet-mxcclub in pallets/mxcclub.
+impl pallet_mxcclub::Config for Runtime {
 	type Event = Event;
 }
 
@@ -283,8 +283,8 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
-		// Include the custom logic from the pallet-template in the runtime.
-		TemplateModule: pallet_template,
+		// Include the custom logic from the pallet-mxcclub in the runtime.
+		MxcClubModule: pallet_mxcclub,
 	}
 );
 
@@ -329,7 +329,7 @@ mod benches {
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_balances, Balances]
 		[pallet_timestamp, Timestamp]
-		[pallet_template, TemplateModule]
+		[pallet_mxcclub, MxcClubModule]
 	);
 }
 
